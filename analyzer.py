@@ -162,6 +162,115 @@ class TimeDomainAnalyzer:
         plt.tight_layout()
         plt.show()
 
+
+    def perform_correlation_analysis(self):
+        # Calculate Pearson correlation coefficient and p-value
+        correlation_coeff, p_value = stats.pearsonr(self.time_series_1, self.time_series_2)
+
+        print(f"Pearson correlation coefficient: {correlation_coeff}")
+        print(f"P-value: {p_value}")
+
+        if p_value < 0.05:
+            print("Reject Null Hypothesis: There is a significant correlation between the time series. Indicating similarity between the time series.")
+        else:
+            print("Accept Null Hypothesis: There is no significant correlation between the time series. Indicating differences between the time series.")
+
+    def perform_cross_correlation(self):
+        cross_corr = np.correlate(self.time_series_1, self.time_series_2, mode='full')
+        lags = np.arange(-len(self.time_series_1) + 1, len(self.time_series_2))
+
+        max_corr = np.max(cross_corr)
+        max_corr_index = np.argmax(cross_corr)
+
+        print(f"Max Cross-Correlation: {max_corr} at lag: {lags[max_corr_index]}")
+
+
+    def compute_cross_correlation(self, max_lag=None, significance_level=0.05):
+        import numpy as np
+        from scipy.signal import correlate
+
+        cross_corr = correlate(self.time_series_1, self.time_series_2, mode='full')
+        if max_lag is not None:
+            cross_corr = cross_corr[len(cross_corr) // 2 - max_lag:len(cross_corr) // 2 + max_lag + 1]
+
+        # Compute the lags
+        lags = np.arange(-len(cross_corr) // 2 + 1, len(cross_corr) // 2 + 1)
+
+        max_corr_idx = np.argmax(np.abs(cross_corr))
+        max_corr_value = cross_corr[max_corr_idx]
+
+        lag = lags[max_corr_idx]
+
+        n = len(self.time_series_1)
+        degrees_of_freedom = n - 2  # Assuming two time series
+
+        # Compute p-value using t-distribution
+        t_value = max_corr_value * np.sqrt(degrees_of_freedom / (n - max_corr_idx - 1))
+        p_value = 2 * (1 - stats.t.cdf(np.abs(t_value), df=degrees_of_freedom))
+
+        is_significant = p_value < significance_level
+
+        print(f"Max Cross-Correlation: {max_corr_value} at lag: {lag}. Is significant: {is_significant}")
+
+        return max_corr_value, lag, cross_corr, lags, p_value, is_significant
+
+
+    def plot_cross_correlation(self, lags, cross_correlation):
+        import matplotlib.pyplot as plt
+        plt.plot(lags, cross_correlation)
+        plt.xlabel('Lag')
+        plt.ylabel('Cross-Correlation')
+        plt.title('Cross-Correlation between Time Series 1 and Time Series 2')
+        plt.show()
+
+    def compute_dtw_similarity(self):
+        from fastdtw import fastdtw
+
+        # Perform Dynamic Time Warping
+        distance, path = fastdtw(self.time_series_1, self.time_series_2)
+
+        # Compute similarity score as the inverse of the distance
+        similarity = 1 / distance
+        print(f"Similarity: {similarity} \tDistance: {distance}")
+        return similarity, path
+
+    def plot_dtw_alignment(self, alignment_path):
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        fig, ax = plt.subplots()
+        ax.plot(self.time_series_1, label='Time Series 1')
+        ax.plot(self.time_series_2, label='Time Series 2')
+
+        # Plot the DTW path
+        path_x = [point[0] for point in alignment_path]
+        path_y = [point[1] for point in alignment_path]
+        ax.plot(path_x, path_y, color='red', linewidth=2, label='DTW Path')
+
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Value')
+        ax.set_title('DTW Alignment')
+
+        ax.legend()
+        plt.show()
+
+
+    def compute_compression_dissimilarity(self):
+        import zlib
+        # Convert time series to bytes
+        bytes_1 = self.time_series_1.tobytes()
+        bytes_2 = self.time_series_2.tobytes()
+
+        # Compute compressed sizes
+        compressed_size_1 = len(zlib.compress(bytes_1))
+        compressed_size_2 = len(zlib.compress(bytes_2))
+
+        # Compute dissimilarity as the absolute difference in compressed sizes
+        dissimilarity = abs(compressed_size_1 - compressed_size_2)
+        print(f"Compression-based dissimilarity: {dissimilarity} \t 0 means similarity")
+        return dissimilarity
+
+
     def calculate_frequencies(self, num_bins=10):
         import numpy as np
         # Determine the range of values
