@@ -2,15 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.signal import correlate
-from scipy.stats import ttest_ind, mannwhitneyu
 import scipy.stats as stats
 import pandas as pd
+
 class TimeDomainAnalyzer:
     """
     # Example usage
-    time_series_1 = np.random.randn(600_000)  # Example ts_1 data (replace with your own)
-    time_series_2 = np.random.randn(600_000)  # Example ts_2 data (replace with your own)
-    sampling_rate = 10_000  # Example sampling rate (replace with your own)
+    time_series_1 = np.sin(np.linspace(-20, 20, 100))       # Example ts_1 data (replace with your own)
+    time_series_2 = np.sin(np.linspace(-30, 50, 100)) + 2   # Example ts_2 data (replace with your own)
+    sampling_rate = 10  # Example sampling rate (replace with your own)
 
     analyzer = TimeDomainAnalyzer(time_series_1, time_series_2, sampling_rate)
     mean_result = analyzer.compare_mean()
@@ -18,9 +18,6 @@ class TimeDomainAnalyzer:
     ho_result = analyzer.compare_higher_moments(2)
     print("higher order comparison:", ho_result)
     analyzer.plot_timeseries()
-    t_stat, p_value = analyzer.perform_hypothesis_test()
-    print(f"T-Statistic: {t_stat}")
-    print(f"P-Value: {p_value}")
     """
     def __init__(self, time_series_1, time_series_2, sampling_rate):
         self.time_series_1 = time_series_1
@@ -81,69 +78,7 @@ class TimeDomainAnalyzer:
         comparison_result = np.abs(ts_1_moment - ts_2_moment)
         return comparison_result
 
-    def plot_distributions(self):
-        sns.set(style="whitegrid")
-        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
-        sns.histplot(self.time_series_1, ax=axes[0], kde=True, color='skyblue')
-        axes[0].set_title('ts_1 Data Distribution')
-
-        sns.histplot(self.time_series_2, ax=axes[1], kde=True, color='salmon')
-        axes[1].set_title('ts_2 Data Distribution')
-
-        plt.tight_layout()
-        plt.show()
-
-    def plot_distributions_one_plot(self):
-        sns.set(style="whitegrid")
-        fig, ax = plt.subplots(figsize=(8, 6))
-
-        sns.histplot(self.time_series_1, ax=ax, kde=True, color='skyblue', label='ts_1 Data')
-        sns.histplot(self.time_series_2, ax=ax, kde=True, color='salmon', label='ts_2 Data')
-
-        ax.set_title('Distribution Comparison')
-        ax.legend()
-        plt.show()
-
-    def plot_boxplots(self):
-        sns.set(style="whitegrid")
-        fig, ax = plt.subplots()
-
-        # Combine the data into a list for box plot
-        data = [self.time_series_1, self.time_series_2]
-
-        # Plot the box plots
-        ax.boxplot(data, labels=['ts_1 Data', 'ts_2 Data'])
-
-        # Set labels and title
-        ax.set_xlabel('Dataset')
-        ax.set_ylabel('Values')
-        ax.set_title('Box Plots of ts_1 and ts_2 Data')
-
-        # Show the plot
-        plt.tight_layout()
-        plt.show()
-
-
-    def plot_boxplots_sns(self):
-        sns.set(style="whitegrid")
-        data = {
-            'Dataset': ['ts_1 Data'] * len(self.time_series_1) + ['ts_2 Data'] * len(self.time_series_2),
-            'Values': np.concatenate((self.time_series_1, self.time_series_2))
-        }
-        df = pd.DataFrame(data)
-
-        # Create the box plot using seaborn
-        sns.boxplot(x='Dataset', y='Values', data=df)
-
-        # Set labels and title
-        plt.xlabel('Dataset')
-        plt.ylabel('Values')
-        plt.title('Box Plots of ts_1 and ts_2 Data')
-
-        # Show the plot
-        plt.tight_layout()
-        plt.show()
 
     def plot_autocorrelation(self):
         autocorr_ts_1 = correlate(self.time_series_1, self.time_series_1, mode='same') / len(self.time_series_1)
@@ -163,14 +98,14 @@ class TimeDomainAnalyzer:
         plt.show()
 
 
-    def perform_correlation_analysis(self):
+    def perform_correlation_analysis(self, significance_level=0.05):
         # Calculate Pearson correlation coefficient and p-value
         correlation_coeff, p_value = stats.pearsonr(self.time_series_1, self.time_series_2)
 
         print(f"Pearson correlation coefficient: {correlation_coeff}")
         print(f"P-value: {p_value}")
 
-        if p_value < 0.05:
+        if p_value < significance_level:
             print("Reject Null Hypothesis: There is a significant correlation between the time series. Indicating similarity between the time series.")
         else:
             print("Accept Null Hypothesis: There is no significant correlation between the time series. Indicating differences between the time series.")
@@ -271,108 +206,6 @@ class TimeDomainAnalyzer:
         return dissimilarity
 
 
-    def calculate_frequencies(self, num_bins=10):
-        import numpy as np
-        # Determine the range of values
-        min_value = min(np.min(self.time_series_1), np.min(self.time_series_2))
-        max_value = max(np.max(self.time_series_1), np.max(self.time_series_2))
-
-        # Define equally spaced bins
-        bins = np.linspace(min_value, max_value, num_bins + 1)
-
-        # Calculate observed frequencies for each time series
-        observed_freq_1, _ = np.histogram(self.time_series_1, bins=bins)
-        observed_freq_2, _ = np.histogram(self.time_series_2, bins=bins)
-
-        # Calculate expected frequencies assuming independence
-        expected_freq = (observed_freq_1 + observed_freq_2) / 2
-
-        return observed_freq_1, observed_freq_2, expected_freq
-
-    def perform_hypothesis_test(self):
-        # Perform a hypothesis test to compare the means of the two datasets
-        t_stat, p_value = ttest_ind(self.time_series_1, self.time_series_2)
-
-        # Return the test statistic and p-value
-        return t_stat, p_value
-
-    def perform_mann_whitney_test(self):
-        # Perform a hypothesis test to compare the distributions of the two datasets using Mann-Whitney U test
-        _, p_value = mannwhitneyu(self.time_series_1, self.time_series_2, alternative='two-sided')
-
-        # Return the p-value
-        return p_value
-
-    def compare_distributions_mannwithneyu(self):
-        stat, p_value = mannwhitneyu(self.time_series_1, self.time_series_2, alternative='two-sided')
-
-        if p_value < 0.05:
-            print("Reject Null Hypothesis: The distributions are significantly different.")
-        else:
-            print("Accept Null Hypothesis: The distributions are not significantly different.")
-
-        print(f"Mann-Whitney U statistic: {stat}")
-        print(f"P-value: {p_value}")
-
-    def compare_distributions_chisquare(self):
-        observed_freq_1, observed_freq_2, expected_freq = self.calculate_frequencies(num_bins=1000)
-        stat, p_value = stats.chisquare(observed_freq_1, f_exp=expected_freq)
-        #stat, p_value = stats.chisquare(self.time_series_1, self.time_series_2)
-
-        if p_value < 0.05:
-            print("Reject Null Hypothesis: The distributions are significantly different.")
-        else:
-            print("Accept Null Hypothesis: The distributions are not significantly different.")
-
-        print(f"Chi² statistic: {stat}")
-        print(f"P-value: {p_value}")
-
-
-    def test_variances(self):
-        _, p_value = stats.bartlett(self.time_series_1, self.time_series_2)
-        # Alternatively, you can use Levene's test:
-        #_, p_value = stats.levene(self.time_series_1, self.time_series_2)
-
-        if p_value < 0.05:
-            print("The variances are significantly different.")
-        else:
-            print("The variances are not significantly different.")
-
-        print(f"P-value: {p_value}")
-
-    def test_normality_shapirowilk(self, data):
-        stat, p_value = stats.shapiro(data)
-
-        if p_value < 0.05:
-            print("The data does not follow a normal distribution.")
-        else:
-            print("The data follows a normal distribution.")
-
-        print(f"Shapiro-Wilk test statistic: {stat}")
-        print(f"P-value: {p_value}")
-
-    def test_normality_anderson(self, data):
-        result = stats.anderson(data)
-
-        if result.statistic < result.critical_values[2]:
-            print("The data follows a normal distribution.")
-        else:
-            print("The data does not follow a normal distribution.")
-
-        print(f"Anderson-Darling test statistic: {result.statistic}")
-        print(f"Critical values: {result.critical_values}")
-
-    def test_normality_kstest(self, data):
-        result = stats.kstest(data, 'norm')
-
-        if result.pvalue < 0.05:
-            print("The data does not follow a normal distribution.")
-        else:
-            print("The data follows a normal distribution.")
-
-        print(f"Kolmogorov-Smirnov test statistic: {result.statistic}")
-        print(f"P-value: {result.pvalue}")
-
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -380,9 +213,9 @@ class FrequencyDomainAnalyzer:
     """
     # Example usage
     import numpy as np
-    time_series_1 = np.random.randn(600_000)  # Example ts_1 data (replace with your own)
-    time_series_2 = np.random.randn(600_000)  # Example ts_2 data (replace with your own)
-    sampling_rate = 10_000
+    time_series_1 = np.sin(np.linspace(-20, 20, 100))       # Example ts_1 data (replace with your own)
+    time_series_2 = np.sin(np.linspace(-30, 50, 100)) + 2   # Example ts_2 data (replace with your own)
+    sampling_rate = 10  # Example sampling rate (replace with your own)
 
     analyzer = FrequencyDomainAnalyzer(time_series_1, time_series_2, sampling_rate)
     comparison_result = analyzer.compare_psd()
@@ -483,7 +316,181 @@ class DataNormalizer:
         normalized_data = self.transform(data)
         return normalized_data
 
+import numpy as np
+import scipy.stats as stats
+class StatsHandler:
+    """
+    data_set_1 = np.random.randn(1_000)  # Example data (replace with your own)
+    data_set_2 = np.random.randn(1_000)  # Example data (replace with your own)
+    """
+    def __init__(self, data_set_1, data_set_2, significance_level=0.05):
+        self.data_set_1 = data_set_1
+        self.data_set_2 = data_set_2
+        self.significance_level = significance_level
+
+    def plot_distributions(self):
+        sns.set(style="whitegrid")
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+        sns.histplot(self.data_set_1, ax=axes[0], kde=True, color='skyblue')
+        axes[0].set_title('Dataset 1 Data Distribution')
+
+        sns.histplot(self.data_set_2, ax=axes[1], kde=True, color='salmon')
+        axes[1].set_title('Dataset 2 Data Distribution')
+
+        plt.tight_layout()
+        plt.show()
+
+    def plot_distributions_one_plot(self):
+        sns.set(style="whitegrid")
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        sns.histplot(self.data_set_1, ax=ax, kde=True, color='skyblue', label='Dataset 1 Data')
+        sns.histplot(self.data_set_2, ax=ax, kde=True, color='salmon', label='Dataset 2 Data')
+
+        ax.set_title('Distribution Comparison')
+        ax.legend()
+        plt.show()
+
+    def plot_boxplots(self):
+        sns.set(style="whitegrid")
+        fig, ax = plt.subplots()
+
+        # Combine the data into a list for box plot
+        data = [self.data_set_1, self.data_set_2]
+
+        # Plot the box plots
+        ax.boxplot(data, labels=['Dataset 1 Data', 'Dataset 2 Data'])
+
+        # Set labels and title
+        ax.set_xlabel('Dataset')
+        ax.set_ylabel('Values')
+        ax.set_title('Box Plots of Dataset 1 and Dataset 2 Data')
+
+        # Show the plot
+        plt.tight_layout()
+        plt.show()
 
 
+    def plot_boxplots_sns(self):
+        sns.set(style="whitegrid")
+        data = {
+            'Dataset': ['Dataset 2 Data'] * len(self.data_set_1) + ['Dataset 2 Data'] * len(self.data_set_2),
+            'Values': np.concatenate((self.data_set_1, self.data_set_2))
+        }
+        df = pd.DataFrame(data)
+
+        # Create the box plot using seaborn
+        sns.boxplot(x='Dataset', y='Values', data=df)
+
+        # Set labels and title
+        plt.xlabel('Dataset')
+        plt.ylabel('Values')
+        plt.title('Box Plots of Dataset 1 and Dataset 2 Data')
+
+        # Show the plot
+        plt.tight_layout()
+        plt.show()
 
 
+    def calculate_frequencies(self, num_bins=10):
+        import numpy as np
+        # Determine the range of values
+        min_value = min(np.min(self.data_set_1), np.min(self.data_set_2))
+        max_value = max(np.max(self.data_set_1), np.max(self.data_set_2))
+
+        # Define equally spaced bins
+        bins = np.linspace(min_value, max_value, num_bins + 1)
+
+        # Calculate observed frequencies for each time series
+        observed_freq_1, _ = np.histogram(self.data_set_1, bins=bins)
+        observed_freq_2, _ = np.histogram(self.data_set_2, bins=bins)
+
+        # Calculate expected frequencies assuming independence
+        expected_freq = (observed_freq_1 + observed_freq_2) / 2
+
+        return observed_freq_1, observed_freq_2, expected_freq
+
+    def perform_hypothesis_test(self):
+        # Perform a hypothesis test to compare the means of the two datasets
+        t_stat, p_value = stats.ttest_ind(self.data_set_1, self.data_set_2)
+
+        # Return the test statistic and p-value
+        return t_stat, p_value
+
+    def perform_mann_whitney_test(self):
+        # Perform a hypothesis test to compare the distributions of the two datasets using Mann-Whitney U test
+        _, p_value = stats.mannwhitneyu(self.data_set_1, self.data_set_2, alternative='two-sided')
+
+        # Return the p-value
+        return p_value
+
+    def compare_distributions_mannwithneyu(self):
+        stat, p_value = stats.mannwhitneyu(self.data_set_1, self.data_set_2, alternative='two-sided')
+
+        if p_value < self.significance_level:
+            print("Reject Null Hypothesis: The distributions are significantly different.")
+        else:
+            print("Accept Null Hypothesis: The distributions are not significantly different.")
+
+        print(f"Mann-Whitney U statistic: {stat}")
+        print(f"P-value: {p_value}")
+
+    def compare_distributions_chisquare(self):
+        observed_freq_1, observed_freq_2, expected_freq = self.calculate_frequencies(num_bins=1000)
+        stat, p_value = stats.chisquare(observed_freq_1, f_exp=expected_freq)
+        #stat, p_value = stats.chisquare(self.data_set_1, self.data_set_2)
+
+        if p_value < self.significance_level:
+            print("Reject Null Hypothesis: The distributions are significantly different.")
+        else:
+            print("Accept Null Hypothesis: The distributions are not significantly different.")
+
+        print(f"Chi² statistic: {stat}")
+        print(f"P-value: {p_value}")
+
+
+    def test_variances(self):
+        _, p_value = stats.bartlett(self.data_set_1, self.data_set_2)
+        # Alternatively, you can use Levene's test:
+        #_, p_value = stats.levene(self.data_set_1, self.data_set_2)
+
+        if p_value < self.significance_level:
+            print("The variances are significantly different.")
+        else:
+            print("The variances are not significantly different.")
+
+        print(f"P-value: {p_value}")
+
+    def test_normality_shapirowilk(self, data):
+        stat, p_value = stats.shapiro(data)
+
+        if p_value < self.significance_level:
+            print("The data does not follow a normal distribution.")
+        else:
+            print("The data follows a normal distribution.")
+
+        print(f"Shapiro-Wilk test statistic: {stat}")
+        print(f"P-value: {p_value}")
+
+    def test_normality_anderson(self, data):
+        result = stats.anderson(data)
+
+        if result.statistic < result.critical_values[2]:
+            print("The data follows a normal distribution.")
+        else:
+            print("The data does not follow a normal distribution.")
+
+        print(f"Anderson-Darling test statistic: {result.statistic}")
+        print(f"Critical values: {result.critical_values}")
+
+    def test_normality_kstest(self, data):
+        result = stats.kstest(data, 'norm')
+
+        if result.pvalue < self.significance_level:
+            print("The data does not follow a normal distribution.")
+        else:
+            print("The data follows a normal distribution.")
+
+        print(f"Kolmogorov-Smirnov test statistic: {result.statistic}")
+        print(f"P-value: {result.pvalue}")
